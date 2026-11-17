@@ -170,7 +170,8 @@ const fsSource = `
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = mix(vec3(l), c, sat);
 
-    float amount = (u_sharpness / 100.0) * 1.25 + (u_clarity / 100.0) * 0.65;
+    // 鮮明さ・明瞭度の効きを2倍に強化 (1.25->2.5, 0.65->1.3)
+    float amount = (u_sharpness / 100.0) * 2.5 + (u_clarity / 100.0) * 1.3;
     if (amount != 0.0) {
       vec3 blur = (
         texture2D(u_image, v_texCoord + vec2(u_texelSize.x, 0.0)).rgb +
