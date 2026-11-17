@@ -21,38 +21,36 @@ button.primary{background:#315b9b;border-color:#4779c0;color:white;font-weight:6
 button.primary:hover{background:#3d6db3}
 button:disabled{opacity:.45;cursor:not-allowed}
 #fileInput{display:none}
-.file-name{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45vw}
+.file-name{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45vw;flex:1}.toolbar #resetBtn{margin-left:auto;flex-shrink:0}
 .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:12px;background-color:#151922;background-image:linear-gradient(45deg,#202630 25%,transparent 25%),linear-gradient(-45deg,#202630 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#202630 75%),linear-gradient(-45deg,transparent 75%,#202630 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;overflow:hidden;position:relative}
 #preview{display:block;max-width:100%;max-height:100%;object-fit:contain}
 .empty{position:absolute;text-align:center;color:var(--muted);padding:28px;pointer-events:none}
 .empty strong{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
 .stage.dragover{outline:3px solid var(--accent);outline-offset:-5px;background-color:#202b3c}
-.status{height:26px;padding-top:8px;color:var(--muted);font-size:12px}
-.sidebar{border-left:1px solid var(--line);background:var(--panel);padding:18px 18px 20px;overflow-y:auto;min-height:0}
-.sidebar h2{font-size:16px;margin:0 0 4px}.sub{color:var(--muted);font-size:12px;margin-bottom:16px}
-.group{padding:13px 0;border-top:1px solid var(--line)}
-.group h3{font-size:13px;margin:0 0 12px;color:var(--accent2);font-weight:700}
-.control{margin:0 0 13px}.control:last-child{margin-bottom:0}
-.control-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:5px}
-.control label{color:#e0e6ef}
-.value{width:76px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:#11151c;color:var(--text);text-align:right;font:12px ui-monospace,monospace}
-input[type=range]{width:100%;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
-.actions button{padding:10px 8px}.actions .primary{grid-column:1/-1}
-.hint{font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6}
-@media(max-width:850px){main{height:auto;min-height:calc(100vh - 58px);grid-template-columns:1fr}.workspace{height:58vh;min-height:360px}.sidebar{border-left:0;border-top:1px solid var(--line);overflow:visible}.file-name{max-width:55vw}}
+.status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.sidebar{border-left:1px solid var(--line);background:var(--panel);padding:10px 16px;overflow:hidden;min-height:0;display:flex;flex-direction:column;justify-content:space-between}
+.group{padding:7px 0;border-top:1px solid var(--line)}
+.group h3{font-size:12px;margin:0 0 6px;color:var(--accent2);font-weight:700}
+.control{margin:0 0 5px}.control:last-child{margin-bottom:0}
+.control-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:1px;min-height:21px}
+.control label{color:#e0e6ef;font-size:12px}
+.value{width:66px;height:22px;padding:2px 5px;border:1px solid var(--line);border-radius:5px;background:#11151c;color:var(--text);text-align:right;font:11px ui-monospace,monospace}
+input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var(--accent);cursor:pointer}
+.actions{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
+.actions button{width:100%;padding:8px}.actions .primary{grid-column:auto}
+@media(max-width:850px){main{height:auto;min-height:calc(100vh - 58px);grid-template-columns:1fr}.workspace{height:58vh;min-height:360px}.sidebar{border-left:0;border-top:1px solid var(--line);overflow:visible;display:block}.file-name{max-width:55vw}}
 @media(max-width:520px){header{padding:0 14px}.workspace{padding:12px;height:52vh}.sidebar{padding:16px}.toolbar{gap:7px}.file-button,button{padding:8px 10px}.file-name{width:100%;max-width:none}}
 </style>
 </head>
 <body>
-<header><div class="brand">VRChat <span>Photo Editor</span></div><small>ローカル画像編集</small></header>
+<header><div class="brand">VRChat <span>Photo Editor</span></div></header>
 <main>
 <section class="workspace">
   <div class="toolbar">
     <label class="file-button" for="fileInput">ファイルを選択</label>
     <input id="fileInput" type="file" accept="image/*">
-    <button id="resetBtn" type="button" disabled>調整をリセット</button>
     <span class="file-name" id="fileName">画像が選択されていません</span>
+    <button id="resetBtn" type="button" disabled>調整をリセット</button>
   </div>
   <div class="stage" id="stage">
     <canvas id="preview"></canvas>
@@ -61,7 +59,6 @@ input[type=range]{width:100%;height:18px;margin:0;accent-color:var(--accent);cur
   <div class="status" id="status">画像はブラウザー内で処理され、サーバーへ送信されません。</div>
 </section>
 <aside class="sidebar">
-  <h2>画像調整</h2><div class="sub">数値入力またはスライダーで調整できます。</div>
   <div class="group">
     <h3>明るさ・色バランス</h3>
     <div class="control" data-key="brightness"><div class="control-head"><label for="brightness">明るさ（除算）</label><input class="value" id="brightnessValue" type="number" min="-100" max="100" step="1" value="0"></div><input id="brightness" type="range" min="-100" max="100" step="1" value="0"></div>
@@ -81,10 +78,8 @@ input[type=range]{width:100%;height:18px;margin:0;accent-color:var(--accent);cur
   </div>
   <div class="actions">
     <button id="copyBtn" type="button" disabled>画像をコピー</button>
-    <button id="resetAllBtn" type="button" disabled>すべてリセット</button>
     <button id="saveBtn" class="primary" type="button" disabled>PNGで保存</button>
   </div>
-  <div class="hint">Ctrl+Cでも現在の編集結果をクリップボードへコピーできます。初回利用時やブラウザーの仕様により、コピー時に許可が必要な場合があります。</div>
 </aside>
 </main>
 <script>
@@ -123,7 +118,7 @@ function loadFile(file){
     canvas.width = originalWidth; canvas.height = originalHeight;
     $('fileName').textContent = file.name + ` (${originalWidth} × ${originalHeight})`;
     $('empty').hidden = true;
-    ['resetBtn','copyBtn','resetAllBtn','saveBtn'].forEach(id => $(id).disabled=false);
+    ['resetBtn','copyBtn','saveBtn'].forEach(id => $(id).disabled=false);
     renderImage(); URL.revokeObjectURL(url);
   };
   img.onerror = () => {URL.revokeObjectURL(url);setStatus('画像を読み込めませんでした。');};
@@ -156,12 +151,16 @@ function renderImage(){
   // Base color adjustments; highlights/shadows are weighted by luminance.
   const base=new Float32Array(d.length);
   for(let i=0;i<d.length;i+=4){
-    let r=d[i]*brightMul*gains[0]*tempGains[0],g=d[i+1]*brightMul*gains[1]*tempGains[1],b=d[i+2]*brightMul*gains[2]*tempGains[2];
-    const lum=0.2126*r+0.7152*g+0.0722*b;
+    let r=clamp(d[i]*brightMul*gains[0]*tempGains[0],0,255);
+    let g=clamp(d[i+1]*brightMul*gains[1]*tempGains[1],0,255);
+    let b=clamp(d[i+2]*brightMul*gains[2]*tempGains[2],0,255);
+    const lum=clamp(0.2126*r+0.7152*g+0.0722*b,0,255);
     const shW=Math.pow(1-lum/255,1.7), hiW=Math.pow(lum/255,1.7);
     const tonal=1+shadow*0.9*shW+highlight*0.75*hiW;
-    r*=tonal;g*=tonal;b*=tonal;
-    r=(r-127.5)*contrastFactor+127.5;g=(g-127.5)*contrastFactor+127.5;b=(b-127.5)*contrastFactor+127.5;
+    r=clamp(r*tonal,0,255);g=clamp(g*tonal,0,255);b=clamp(b*tonal,0,255);
+    r=clamp((r-127.5)*contrastFactor+127.5,0,255);
+    g=clamp((g-127.5)*contrastFactor+127.5,0,255);
+    b=clamp((b-127.5)*contrastFactor+127.5,0,255);
     const l=0.2126*r+0.7152*g+0.0722*b;
     r=l+(r-l)*satFactor;g=l+(g-l)*satFactor;b=l+(b-l)*satFactor;
     base[i]=clamp(r,0,255);base[i+1]=clamp(g,0,255);base[i+2]=clamp(b,0,255);
@@ -188,13 +187,12 @@ function renderImage(){
   }
   // Keep source alpha unchanged.
   ctx.putImageData(image,0,0);
-  setStatus(`${fileLabel} — ${w} × ${h} px | 編集結果をローカルで表示中`);
+  setStatus(`${fileLabel} — ${w} × ${h} px`);
 }
 function reset(){
   keys.forEach(k=>syncControl(k,0));scheduleRender();
 }
 $('resetBtn').addEventListener('click',reset);
-$('resetAllBtn').addEventListener('click',reset);
 
 function canvasBlob(type='image/png'){
   return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('画像を書き出せませんでした。')),type));
@@ -211,7 +209,11 @@ async function copyImage(){
 $('copyBtn').addEventListener('click',copyImage);
 document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){
-    if(!source)return;
+    const active=document.activeElement;
+    const editingNumber=active && active.classList && active.classList.contains('value');
+    const selection=window.getSelection();
+    const hasTextSelection=selection && !selection.isCollapsed;
+    if(editingNumber || hasTextSelection || !source)return;
     e.preventDefault();copyImage();
   }
 });
