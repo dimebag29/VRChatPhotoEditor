@@ -29,7 +29,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .empty strong{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
 .stage.dragover{outline:3px solid var(--accent);outline-offset:-5px;background-color:#202b3c}
 .status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.sidebar{border-left:1px solid var(--line);background:var(--panel);padding:10px 16px;overflow:hidden;min-height:0;display:flex;flex-direction:column;justify-content:space-between}
+.sidebar{border-left:1px solid var(--line);background:var(--panel);padding:10px 16px 12px;overflow:hidden;min-height:0;display:flex;flex-direction:column;justify-content:space-between}
 .group{padding:7px 0;border-top:1px solid var(--line)}
 .group h3{font-size:12px;margin:0 0 6px;color:var(--accent2);font-weight:700}
 .control{margin:0 0 5px}.control:last-child{margin-bottom:0}
@@ -37,9 +37,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .control label{color:#e0e6ef;font-size:12px}
 .value{width:66px;height:22px;padding:2px 5px;border:1px solid var(--line);border-radius:5px;background:#11151c;color:var(--text);text-align:right;font:11px ui-monospace,monospace}
 input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var(--accent);cursor:pointer}
-.actions{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
+.actions{display:grid;grid-template-columns:1fr;gap:7px;margin-top:6px}
 .actions button{width:100%;padding:8px}.actions .primary{grid-column:auto}
-.hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+.hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4}
 @media(max-width:850px){main{height:auto;min-height:calc(100vh - 58px);grid-template-columns:1fr}.workspace{height:58vh;min-height:360px}.sidebar{border-left:0;border-top:1px solid var(--line);overflow:visible;display:block}.file-name{max-width:55vw}}
 @media(max-width:520px){header{padding:0 14px}.workspace{padding:12px;height:52vh}.sidebar{padding:16px}.toolbar{gap:7px}.file-button,button{padding:8px 10px}.file-name{width:100%;max-width:none}}
 </style>
@@ -80,7 +80,7 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
     <div class="control" data-key="clarity"><div class="control-head"><label for="clarity">明瞭度</label><input class="value" id="clarityValue" type="number" min="-100" max="100" value="0"></div><input id="clarity" type="range" min="-100" max="100" value="0"></div>
   </div>
   <div class="actions">
-    <button id="copyBtn" type="button" disabled>画像をコピー</button>
+    <button id="copyBtn" type="button" disabled>画像をクリップボードにコピー</button>
     <button id="saveBtn" class="primary" type="button" disabled>PNGで保存</button>
   </div>
   <div class="hint">Ctrl+Cでも現在の編集結果をクリップボードへコピーできます。初回利用時やブラウザーの仕様により、コピー時に許可が必要な場合があります。</div>
@@ -94,7 +94,6 @@ const canvas=$('preview'),ctx=canvas.getContext('2d',{willReadFrequently:true}),
 const keys=['brightness','red','green','blue','temperature','contrast','highlights','shadows','saturation','sharpness','clarity'];
 let settings=Object.fromEntries(keys.map(k=>[k,0])),source=null,originalWidth=0,originalHeight=0,fileLabel='',renderQueued=false;
 let view={left:0,top:0,width:0,height:0,fit:1,zoom:1},selection=null,drag=null;
-const PREVIEW_MAX=1200;
 function setStatus(m){$('status').textContent=m;}
 function clamp(v,a,b){return Math.min(b,Math.max(a,v));}
 function syncControl(k,v){const r=$(k),n=$(k+'Value'),x=clamp(Number.isFinite(Number(v))?Number(v):0,Number(r.min),Number(r.max));settings[k]=x;r.value=x;n.value=x;}
@@ -102,20 +101,21 @@ keys.forEach(k=>{$(k).addEventListener('input',e=>{syncControl(k,e.target.value)
 function scheduleRender(){if(!source||renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;renderPreview();});}
 function fitImage(){if(!source)return;const r=stage.getBoundingClientRect(),pad=18;view.fit=Math.min((r.width-pad*2)/originalWidth,(r.height-pad*2)/originalHeight);view.zoom=1;view.width=originalWidth*view.fit;view.height=originalHeight*view.fit;view.left=(r.width-view.width)/2;view.top=(r.height-view.height)/2;applyView();}
 function applyView(){canvas.style.left=view.left+'px';canvas.style.top=view.top+'px';canvas.style.width=view.width+'px';canvas.style.height=view.height+'px';updateSelectionBox();}
-function loadFile(file){if(!file||!file.type.startsWith('image/')){setStatus('画像ファイルを選択してください。');return;}const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{source=img;originalWidth=img.naturalWidth;originalHeight=img.naturalHeight;fileLabel=file.name;selection=null;selectionEl.style.display='none';$('fileName').textContent=file.name+` (${originalWidth} × ${originalHeight})`;$('empty').hidden=true;['resetBtn','copyBtn','saveBtn'].forEach(id=>$(id).disabled=false);renderPreview();fitImage();URL.revokeObjectURL(url);};img.onerror=()=>{URL.revokeObjectURL(url);setStatus('画像を読み込めませんでした。');};img.src=url;}
+function loadFile(file){if(!file||!file.type.startsWith('image/')){setStatus('画像ファイルを選択してください。');return;}const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{source=img;originalWidth=img.naturalWidth;originalHeight=img.naturalHeight;fileLabel=file.name;selection=null;selectionEl.style.display='none';$('fileName').textContent=file.name+` (${originalWidth} × ${originalHeight})`;$('empty').style.display='none';['resetBtn','copyBtn','saveBtn'].forEach(id=>$(id).disabled=false);renderPreview();fitImage();URL.revokeObjectURL(url);};img.onerror=()=>{URL.revokeObjectURL(url);setStatus('画像を読み込めませんでした。');};img.src=url;}
 $('fileInput').addEventListener('change',e=>loadFile(e.target.files[0]));
 stage.addEventListener('dragover',e=>{e.preventDefault();stage.classList.add('dragover');});stage.addEventListener('dragleave',e=>{if(!stage.contains(e.relatedTarget))stage.classList.remove('dragover');});stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('dragover');loadFile(e.dataTransfer.files[0]);});
-function renderTo(target,maxDim=Infinity){if(!source)return;const scale=Math.min(1,maxDim/Math.max(originalWidth,originalHeight));const w=Math.max(1,Math.round(originalWidth*scale)),h=Math.max(1,Math.round(originalHeight*scale));target.width=w;target.height=h;const c=target.getContext('2d',{willReadFrequently:true});c.drawImage(source,0,0,w,h);const image=c.getImageData(0,0,w,h),d=image.data,n=w*h,s=settings;
+function renderTo(target){if(!source)return;const w=originalWidth,h=originalHeight;target.width=w;target.height=h;const c=target.getContext('2d',{willReadFrequently:true});c.drawImage(source,0,0,w,h);const image=c.getImageData(0,0,w,h),d=image.data,n=w*h,s=settings;
  const bright=s.brightness/100,den=bright>=0?1-bright*.92:1+(-bright)*3,brightMul=1/den;
  const rg=1+s.red/100,gg=1+s.green/100,bg=1+s.blue/100,t=s.temperature/100,tr=1+.22*t,tg=1+.02*t,tb=1-.22*t;
  const cf=s.contrast/100,contrast=cf>=0?1+cf*2.2:1+cf*.85,sat=1+s.saturation/100,sh=s.shadows/100,hi=s.highlights/100,sharp=s.sharpness/100,clar=s.clarity/100;
- // 1パス目：基本補正。画素ごとの一時配列を作らずImageDataへ直接書き込みます。
+ // 1パス目：基本補正
  for(let i=0;i<d.length;i+=4){let r=clamp(d[i]*brightMul*rg*tr,0,255),g=clamp(d[i+1]*brightMul*gg*tg,0,255),b=clamp(d[i+2]*brightMul*bg*tb,0,255);const lum=(.2126*r+.7152*g+.0722*b)/255,tonal=1+sh*.9*Math.pow(1-lum,1.7)+hi*.75*Math.pow(lum,1.7);r=clamp(r*tonal,0,255);g=clamp(g*tonal,0,255);b=clamp(b*tonal,0,255);r=clamp((r-127.5)*contrast+127.5,0,255);g=clamp((g-127.5)*contrast+127.5,0,255);b=clamp((b-127.5)*contrast+127.5,0,255);const l=.2126*r+.7152*g+.0722*b;d[i]=clamp(l+(r-l)*sat,0,255);d[i+1]=clamp(l+(g-l)*sat,0,255);d[i+2]=clamp(l+(b-l)*sat,0,255);}
- // 2パス目：鮮明さ・明瞭度。高速な十字5タップの局所平均で3x3畳み込みを置換。
+ // 2パス目：鮮明さ・明瞭度
  if(sharp>0||clar!==0){const src=new Float32Array(d.length);for(let i=0;i<d.length;i+=4){src[i]=d[i];src[i+1]=d[i+1];src[i+2]=d[i+2];}const amount=sharp*1.25+clar*.65;for(let y=0;y<h;y++){const row=y*w;for(let x=0;x<w;x++){const p=(row+x)*4,left=(row+Math.max(0,x-1))*4,right=(row+Math.min(w-1,x+1))*4,up=(Math.max(0,y-1)*w+x)*4,down=(Math.min(h-1,y+1)*w+x)*4;for(let ch=0;ch<3;ch++){const blur=(src[p+ch]+src[left+ch]+src[right+ch]+src[up+ch]+src[down+ch])*.2;d[p+ch]=clamp(src[p+ch]+(src[p+ch]-blur)*amount,0,255);}}}}
  c.putImageData(image,0,0);return {width:w,height:h};}
-function renderPreview(){if(!source)return;renderTo(canvas,PREVIEW_MAX);applyView();}
-function reset(){keys.forEach(k=>syncControl(k,0));scheduleRender();}$('resetBtn').addEventListener('click',reset);
+function renderPreview(){if(!source)return;renderTo(canvas);applyView();}
+function reset(){keys.forEach(k=>syncControl(k,0));scheduleRender();}
+$('resetBtn').addEventListener('click',reset);
 function pointerPos(e){const r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
 function imagePos(p){return{x:clamp((p.x-view.left)/view.width*originalWidth,0,originalWidth),y:clamp((p.y-view.top)/view.height*originalHeight,0,originalHeight)};}
 function updateSelectionBox(){if(!selection||!source){selectionEl.style.display='none';return;}const x=view.left+selection.x/originalWidth*view.width,y=view.top+selection.y/originalHeight*view.height,w=selection.w/originalWidth*view.width,h=selection.h/originalHeight*view.height;Object.assign(selectionEl.style,{display:'block',left:x+'px',top:y+'px',width:w+'px',height:h+'px'});}
