@@ -92,98 +92,136 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
 const $ = id => document.getElementById(id);
 const canvas=$('preview'),ctx=canvas.getContext('2d',{willReadFrequently:true}),stage=$('stage'),selectionEl=$('selection');
 const keys=['brightness','red','green','blue','temperature','contrast','highlights','shadows','saturation','sharpness','clarity'];
-let settings=Object.fromEntries(keys.map(k=>[k,0])),source=null,originalWidth=0,originalHeight=0,fileLabel='',renderQueued=false,isDraggingSlider=false;
+let settings=Object.fromEntries(keys.map(k=>[k,0])),source=null,originalWidth=0,originalHeight=0,fileLabel='',renderQueued=false;
+let baseImageData=null;
+let worker=new Worker('worker.js');
 let view={left:0,top:0,width:0,height:0,fit:1,zoom:1},selection=null,drag=null;
+
 function setStatus(m){$('status').textContent=m;}
 function clamp(v,a,b){return Math.min(b,Math.max(a,v));}
 function syncControl(k,v){const r=$(k),n=$(k+'Value'),x=clamp(Number.isFinite(Number(v))?Number(v):0,Number(r.min),Number(r.max));settings[k]=x;r.value=x;n.value=x;}
 
 keys.forEach(k=>{
-  const range=$(k), num=$(k+'Value');
-  range.addEventListener('pointerdown', ()=>{ isDraggingSlider=true; });
-  window.addEventListener('pointerup', ()=>{ 
-    if(isDraggingSlider){
-      isDraggingSlider=false;
-      renderPreview(true); // 指を離した時に高画質で確定描画
-    }
-  });
-  range.addEventListener('input',e=>{syncControl(k,e.target.value);scheduleRender();});
-  num.addEventListener('change',e=>{syncControl(k,e.target.value);renderPreview(true);});
-  num.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.target.blur();renderPreview(true);}});
+  $(k).addEventListener('input',e=>{syncControl(k,e.target.value);scheduleRender();});
+  $(k+'Value').addEventListener('change',e=>{syncControl(k,e.target.value);scheduleRender();});
+  $(k+'Value').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.target.blur();scheduleRender();}});
 });
 
-function scheduleRender(){if(!source||renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;renderPreview(false);});}
-function fitImage(){if(!source)return;const r=stage.getBoundingClientRect(),pad=18;view.fit=Math.min((r.width-pad*2)/originalWidth,(r.height-pad*2)/originalHeight);view.zoom=1;view.width=originalWidth*view.fit;view.height=originalHeight*view.fit;view.left=(r.width-view.width)/2;view.top=(r.height-view.height)/2;applyView();}
-function applyView(){canvas.style.left=view.left+'px';canvas.style.top=view.top+'px';canvas.style.width=view.width+'px';canvas.style.height=view.height+'px';updateSelectionBox();}
-function loadFile(file){if(!file||!file.type.startsWith('image/')){setStatus('画像ファイルを選択してください。');return;}const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{source=img;originalWidth=img.naturalWidth;originalHeight=img.naturalHeight;fileLabel=file.name;selection=null;selectionEl.style.display='none';$('fileName').textContent=file.name+` (${originalWidth} × ${originalHeight})`;$('empty').style.display='none';['resetBtn','copyBtn','saveBtn'].forEach(id=>$(id).disabled=false);renderPreview(true);fitImage();URL.revokeObjectURL(url);};img.onerror=()=>{URL.revokeObjectURL(url);setStatus('画像を読み込めませんでした。');};img.src=url;}
-$('fileInput').addEventListener('change',e=>loadFile(e.target.files[0]));
-stage.addEventListener('dragover',e=>{e.preventDefault();stage.classList.add('dragover');});stage.addEventListener('dragleave',e=>{if(!stage.contains(e.relatedTarget))stage.classList.remove('dragover');});stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('dragover');loadFile(e.dataTransfer.files[0]);});
-
-function renderTo(target, fast=false){
-  if(!source)return;
-  // ドラッグ中は最大1000pxに自動制限して爆速化。指を離すか確定時はフル解像度(originalWidth/Height)
-  const maxDim = (fast && isDraggingSlider) ? 1000 : Math.max(originalWidth, originalHeight);
-  const scale = Math.min(1, maxDim / Math.max(originalWidth, originalHeight));
-  const w = Math.max(1, Math.round(originalWidth * scale)), h = Math.max(1, Math.round(originalHeight * scale));
-  
-  target.width=w; target.height=h;
-  const c=target.getContext('2d',{willReadFrequently:true});
-  c.drawImage(source,0,0,w,h);
-  
-  const image=c.getImageData(0,0,w,h),d=image.data,s=settings;
-  const bright=s.brightness/100,den=bright>=0?1-bright*.92:1+(-bright)*3,brightMul=1/den;
-  const rg=1+s.red/100,gg=1+s.green/100,bg=1+s.blue/100,t=s.temperature/100,tr=1+.22*t,tg=1+.02*t,tb=1-.22*t;
-  const cf=s.contrast/100,contrast=cf>=0?1+cf*2.2:1+cf*.85,sat=1+s.saturation/100,sh=s.shadows/100,hi=s.highlights/100,sharp=s.sharpness/100,clar=s.clarity/100;
-  
-  // 1パス目：基本補正
-  for(let i=0;i<d.length;i+=4){
-    let r=clamp(d[i]*brightMul*rg*tr,0,255),g=clamp(d[i+1]*brightMul*gg*tg,0,255),b=clamp(d[i+2]*brightMul*bg*tb,0,255);
-    const lum=(.2126*r+.7152*g+.0722*b)/255,tonal=1+sh*.9*Math.pow(1-lum,1.7)+hi*.75*Math.pow(lum,1.7);
-    r=clamp(r*tonal,0,255);g=clamp(g*tonal,0,255);b=clamp(b*tonal,0,255);
-    r=clamp((r-127.5)*contrast+127.5,0,255);g=clamp((g-127.5)*contrast+127.5,0,255);b=clamp((b-127.5)*contrast+127.5,0,255);
-    const l=.2126*r+.7152*g+.0722*b;
-    d[i]=clamp(l+(r-l)*sat,0,255);d[i+1]=clamp(l+(g-l)*sat,0,255);d[i+2]=clamp(l+(b-l)*sat,0,255);
-  }
-  
-  // 2パス目：鮮明さ・明瞭度（ドラッグ中の高速化時はスキップしてさらに軽快に動作します）
-  if(!(fast && isDraggingSlider) && (sharp>0||clar!==0)){
-    const src=new Float32Array(d.length);
-    for(let i=0;i<d.length;i+=4){src[i]=d[i];src[i+1]=d[i+1];src[i+2]=d[i+2];}
-    const amount=sharp*1.25+clar*.65;
-    for(let y=0;y<h;y++){
-      const row=y*w;
-      for(let x=0;x<w;x++){
-        const p=(row+x)*4,left=(row+Math.max(0,x-1))*4,right=(row+Math.min(w-1,x+1))*4,up=(Math.max(0,y-1)*w+x)*4,down=(Math.min(h-1,y+1)*w+x)*4;
-        for(let ch=0;ch<3;ch++){
-          const blur=(src[p+ch]+src[left+ch]+src[right+ch]+src[up+ch]+src[down+ch])*.2;
-          d[p+ch]=clamp(src[p+ch]+(src[p+ch]-blur)*amount,0,255);
-        }
-      }
-    }
-  }
-  c.putImageData(image,0,0);
-  return {width:w,height:h};
+function scheduleRender(){
+  if(!source || !baseImageData || renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    renderPreview();
+  });
 }
 
-function renderPreview(forceFull=false){if(!source)return;renderTo(canvas, !forceFull);applyView();}
-function reset(){keys.forEach(k=>syncControl(k,0));renderPreview(true);}
+function fitImage(){if(!source)return;const r=stage.getBoundingClientRect(),pad=18;view.fit=Math.min((r.width-pad*2)/originalWidth,(r.height-pad*2)/originalHeight);view.zoom=1;view.width=originalWidth*view.fit;view.height=originalHeight*view.fit;view.left=(r.width-view.width)/2;view.top=(r.height-view.height)/2;applyView();}
+function applyView(){canvas.style.left=view.left+'px';canvas.style.top=view.top+'px';canvas.style.width=view.width+'px';canvas.style.height=view.height+'px';updateSelectionBox();}
+
+function loadFile(file){
+  if(!file||!file.type.startsWith('image/')){setStatus('画像ファイルを選択してください。');return;}
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{
+    source=img;originalWidth=img.naturalWidth;originalHeight=img.naturalHeight;fileLabel=file.name;
+    selection=null;selectionEl.style.display='none';
+    $('fileName').textContent=file.name+` (${originalWidth} × ${originalHeight})`;
+    $('empty').style.display='none';
+    ['resetBtn','copyBtn','saveBtn'].forEach(id=>$(id).disabled=false);
+    
+    // 元画像データを取得して保持
+    canvas.width=originalWidth; canvas.height=originalHeight;
+    ctx.drawImage(img,0,0);
+    baseImageData=ctx.getImageData(0,0,originalWidth,originalHeight);
+
+    renderPreview();
+    fitImage();
+    URL.revokeObjectURL(url);
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url);setStatus('画像を読み込めませんでした。');};
+  img.src=url;
+}
+
+$('fileInput').addEventListener('change',e=>loadFile(e.target.files[0]));
+stage.addEventListener('dragover',e=>{e.preventDefault();stage.classList.add('dragover');});
+stage.addEventListener('dragleave',e=>{if(!stage.contains(e.relatedTarget))stage.classList.remove('dragover');});
+stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('dragover');loadFile(e.dataTransfer.files[0]);});
+
+worker.onmessage = function(e) {
+  const processedData = e.data.imageData;
+  canvas.width = originalWidth;
+  canvas.height = originalHeight;
+  ctx.putImageData(processedData, 0, 0);
+  applyView();
+};
+
+function renderPreview(){
+  if(!source || !baseImageData) return;
+  // 常にフル画質のImageDataを複製してWorkerへ送信
+  const imgDataCopy = new ImageData(
+    new Uint8ClampedArray(baseImageData.data),
+    baseImageData.width,
+    baseImageData.height
+  );
+  worker.postMessage({
+    imageData: imgDataCopy,
+    settings: settings,
+    originalWidth: originalWidth,
+    originalHeight: originalHeight
+  }, [imgDataCopy.data.buffer]);
+}
+
+function reset(){
+  keys.forEach(k=>syncControl(k,0));
+  renderPreview();
+}
 $('resetBtn').addEventListener('click',reset);
+
 function pointerPos(e){const r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
 function imagePos(p){return{x:clamp((p.x-view.left)/view.width*originalWidth,0,originalWidth),y:clamp((p.y-view.top)/view.height*originalHeight,0,originalHeight)};}
 function updateSelectionBox(){if(!selection||!source){selectionEl.style.display='none';return;}const x=view.left+selection.x/originalWidth*view.width,y=view.top+selection.y/originalHeight*view.height,w=selection.w/originalWidth*view.width,h=selection.h/originalHeight*view.height;Object.assign(selectionEl.style,{display:'block',left:x+'px',top:y+'px',width:w+'px',height:h+'px'});}
+
 stage.addEventListener('contextmenu',e=>e.preventDefault());
 stage.addEventListener('pointerdown',e=>{if(!source)return;if(e.button===2){drag={type:'pan',x:e.clientX,y:e.clientY,left:view.left,top:view.top};stage.setPointerCapture(e.pointerId);e.preventDefault();return;}if(e.button===0){const p=pointerPos(e),im=imagePos(p);drag={type:'select',start:im,current:im};selection={x:im.x,y:im.y,w:0,h:0};updateSelectionBox();stage.setPointerCapture(e.pointerId);e.preventDefault();}});
 stage.addEventListener('pointermove',e=>{if(!drag)return;if(drag.type==='pan'){view.left=drag.left+(e.clientX-drag.x);view.top=drag.top+(e.clientY-drag.y);applyView();}else{const p=imagePos(pointerPos(e)),a=drag.start;drag.current=p;selection={x:Math.min(a.x,p.x),y:Math.min(a.y,p.y),w:Math.abs(p.x-a.x),h:Math.abs(p.y-a.y)};updateSelectionBox();}});
-function endDrag(){if(drag&&drag.type==='select'&&selection&&(selection.w<3||selection.h<3)){selection=null;selectionEl.style.display='none';}drag=null;}stage.addEventListener('pointerup',endDrag);stage.addEventListener('pointercancel',endDrag);
+function endDrag(){if(drag&&drag.type==='select'&&selection&&(selection.w<3||selection.h<3)){selection=null;selectionEl.style.display='none';}drag=null;}
+stage.addEventListener('pointerup',endDrag);stage.addEventListener('pointercancel',endDrag);
 stage.addEventListener('wheel',e=>{if(!source)return;e.preventDefault();const p=pointerPos(e),factor=Math.exp(-e.deltaY*.0015),next=clamp(view.zoom*factor,.15,12),ratio=next/view.zoom;view.left=p.x-(p.x-view.left)*ratio;view.top=p.y-(p.y-view.top)*ratio;view.zoom=next;view.width=originalWidth*view.fit*next;view.height=originalHeight*view.fit*next;applyView();},{passive:false});
 new ResizeObserver(()=>{if(source)fitImage();}).observe(stage);
+
 function selectedRect(w,h){if(!selection||selection.w<3||selection.h<3)return{x:0,y:0,w,h};const x=clamp(Math.floor(selection.x),0,w-1),y=clamp(Math.floor(selection.y),0,h-1),right=clamp(Math.ceil(selection.x+selection.w),x+1,w),bottom=clamp(Math.ceil(selection.y+selection.h),y+1,h);return{x,y,w:right-x,h:bottom-y};}
-function exportCanvas(){const full=document.createElement('canvas');renderTo(full, false);const r=selectedRect(originalWidth,originalHeight);if(r.x===0&&r.y===0&&r.w===originalWidth&&r.h===originalHeight)return full;const crop=document.createElement('canvas');crop.width=r.w;crop.height=r.h;crop.getContext('2d').drawImage(full,r.x,r.y,r.w,r.h,0,0,r.w,r.h);return crop;}
+
+async function exportCanvas(){
+  // エクスポート用にもう一度フル画質でWorkerに依頼するか、現在のCanvasから切り出す
+  // すでにcanvasにフル画質で描画されているため、そのままクロップ可能
+  const r=selectedRect(originalWidth,originalHeight);
+  if(r.x===0&&r.y===0&&r.w===originalWidth&&r.h===originalHeight)return canvas;
+  const crop=document.createElement('canvas');crop.width=r.w;crop.height=r.h;crop.getContext('2d').drawImage(canvas,r.x,r.y,r.w,r.h,0,0,r.w,r.h);return crop;
+}
+
 function canvasBlob(c){return new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('画像を書き出せませんでした。')),'image/png'));}
-async function copyImage(){if(!source)return;try{if(!navigator.clipboard||!window.ClipboardItem)throw new Error('このブラウザーでは画像コピーに対応していません。HTTPSのページでお試しください。');const blob=await canvasBlob(exportCanvas());await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);setStatus('編集済み画像をクリップボードにコピーしました。');}catch(err){setStatus('コピーできませんでした：'+(err.message||'ブラウザーの権限をご確認ください。'));}}
+
+async function copyImage(){
+  if(!source)return;
+  try{
+    if(!navigator.clipboard||!window.ClipboardItem)throw new Error('このブラウザーでは画像コピーに対応していません。HTTPSのページでお試しください。');
+    const targetCanvas=await exportCanvas();
+    const blob=await canvasBlob(targetCanvas);
+    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+    setStatus('編集済み画像をクリップボードにコピーしました。');
+  }catch(err){setStatus('コピーできませんでした：'+(err.message||'ブラウザーの権限をご確認ください。'));}
+}
 $('copyBtn').addEventListener('click',copyImage);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selection){selection=null;selectionEl.style.display='none';return;}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){const active=document.activeElement,editingNumber=active&&active.classList&&active.classList.contains('value'),sel=window.getSelection(),hasText=sel&&!sel.isCollapsed;if(editingNumber||hasText||!source)return;e.preventDefault();copyImage();}});
-$('saveBtn').addEventListener('click',async()=>{if(!source)return;try{const blob=await canvasBlob(exportCanvas()),url=URL.createObjectURL(blob),a=document.createElement('a'),stem=(fileLabel||'image').replace(/\.[^.]+$/,'');a.href=url;a.download=stem+'_edited.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus('PNGを保存しました。');}catch(err){setStatus(err.message||'保存に失敗しました。');}});
+
+$('saveBtn').addEventListener('click',async()=>{
+  if(!source)return;
+  try{
+    const targetCanvas=await exportCanvas();
+    const blob=await canvasBlob(targetCanvas),url=URL.createObjectURL(blob),a=document.createElement('a'),stem=(fileLabel||'image').replace(/\.[^.]+$/,'');
+    a.href=url;a.download=stem+'_edited.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    setStatus('PNGを保存しました。');
+  }catch(err){setStatus(err.message||'保存に失敗しました。');}});
 })();
 </script>
 </body>
