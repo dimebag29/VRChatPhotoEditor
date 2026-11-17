@@ -22,9 +22,10 @@ button.primary:hover{background:#3d6db3}
 button:disabled{opacity:.45;cursor:not-allowed}
 #fileInput{display:none}
 .file-name{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45vw;flex:1}.toolbar #resetBtn{margin-left:auto;flex-shrink:0}
-.stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:12px;background-color:#151922;background-image:linear-gradient(45deg,#202630 25%,transparent 25%),linear-gradient(-45deg,#202630 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#202630 75%),linear-gradient(-45deg,transparent 75%,#202630 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;overflow:hidden;position:relative}
-#preview{display:block;max-width:100%;max-height:100%;object-fit:contain}
-.empty{position:absolute;text-align:center;color:var(--muted);padding:28px;pointer-events:none}
+.stage{flex:1;min-height:0;display:block;border:1px solid var(--line);border-radius:12px;background-color:#151922;background-image:linear-gradient(45deg,#202630 25%,transparent 25%),linear-gradient(-45deg,#202630 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#202630 75%),linear-gradient(-45deg,transparent 75%,#202630 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;overflow:hidden;position:relative;touch-action:none;user-select:none;cursor:crosshair}
+#preview{display:block;position:absolute;max-width:none;max-height:none;object-fit:fill;transform-origin:top left;pointer-events:none}
+#selection{position:absolute;display:none;border:1px solid #fff;outline:1px solid #26364d;background:#8ab4ff22;pointer-events:none;z-index:2}
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:28px;pointer-events:none;z-index:3}
 .empty strong{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
 .stage.dragover{outline:3px solid var(--accent);outline-offset:-5px;background-color:#202b3c}
 .status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -38,6 +39,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var(--accent);cursor:pointer}
 .actions{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}
 .actions button{width:100%;padding:8px}.actions .primary{grid-column:auto}
+.hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
 @media(max-width:850px){main{height:auto;min-height:calc(100vh - 58px);grid-template-columns:1fr}.workspace{height:58vh;min-height:360px}.sidebar{border-left:0;border-top:1px solid var(--line);overflow:visible;display:block}.file-name{max-width:55vw}}
 @media(max-width:520px){header{padding:0 14px}.workspace{padding:12px;height:52vh}.sidebar{padding:16px}.toolbar{gap:7px}.file-button,button{padding:8px 10px}.file-name{width:100%;max-width:none}}
 </style>
@@ -54,6 +56,7 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
   </div>
   <div class="stage" id="stage">
     <canvas id="preview"></canvas>
+    <div id="selection"></div>
     <div class="empty" id="empty"><strong>画像をここにドラッグ＆ドロップ</strong>または「ファイルを選択」から画像を読み込んでください。</div>
   </div>
   <div class="status" id="status">画像はブラウザー内で処理され、サーバーへ送信されません。</div>
@@ -61,7 +64,7 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
 <aside class="sidebar">
   <div class="group">
     <h3>明るさ・色バランス</h3>
-    <div class="control" data-key="brightness"><div class="control-head"><label for="brightness">明るさ（除算）</label><input class="value" id="brightnessValue" type="number" min="-100" max="100" step="1" value="0"></div><input id="brightness" type="range" min="-100" max="100" step="1" value="0"></div>
+    <div class="control" data-key="brightness"><div class="control-head"><label for="brightness">明るさ</label><input class="value" id="brightnessValue" type="number" min="-100" max="100" step="1" value="0"></div><input id="brightness" type="range" min="-100" max="100" step="1" value="0"></div>
     <div class="control" data-key="red"><div class="control-head"><label for="red">赤（R）</label><input class="value" id="redValue" type="number" min="-100" max="100" value="0"></div><input id="red" type="range" min="-100" max="100" value="0"></div>
     <div class="control" data-key="green"><div class="control-head"><label for="green">緑（G）</label><input class="value" id="greenValue" type="number" min="-100" max="100" value="0"></div><input id="green" type="range" min="-100" max="100" value="0"></div>
     <div class="control" data-key="blue"><div class="control-head"><label for="blue">青（B）</label><input class="value" id="blueValue" type="number" min="-100" max="100" value="0"></div><input id="blue" type="range" min="-100" max="100" value="0"></div>
@@ -80,152 +83,55 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
     <button id="copyBtn" type="button" disabled>画像をコピー</button>
     <button id="saveBtn" class="primary" type="button" disabled>PNGで保存</button>
   </div>
+  <div class="hint">Ctrl+Cでも現在の編集結果をクリップボードへコピーできます。初回利用時やブラウザーの仕様により、コピー時に許可が必要な場合があります。</div>
 </aside>
 </main>
 <script>
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
-const canvas = $('preview'), ctx = canvas.getContext('2d', {willReadFrequently:true});
-const stage = $('stage'), status = $('status');
-const keys = ['brightness','red','green','blue','temperature','contrast','highlights','shadows','saturation','sharpness','clarity'];
-const defaults = Object.fromEntries(keys.map(k => [k,0]));
-let settings = {...defaults}, source = null, originalWidth = 0, originalHeight = 0, fileLabel = '';
-let renderQueued = false;
-
-function setStatus(message){status.textContent = message;}
-function clamp(v,min,max){return Math.min(max,Math.max(min,v));}
-function syncControl(key,value){
-  const range = $(key), number = $(key+'Value');
-  const n = clamp(Number.isFinite(Number(value)) ? Number(value) : 0, Number(range.min), Number(range.max));
-  settings[key] = n; range.value = n; number.value = n;
-}
-keys.forEach(key => {
-  $(key).addEventListener('input', e => {syncControl(key,e.target.value); scheduleRender();});
-  $(key+'Value').addEventListener('change', e => {syncControl(key,e.target.value); scheduleRender();});
-  $(key+'Value').addEventListener('keydown', e => {if(e.key==='Enter'){e.preventDefault();e.target.blur();}});
-});
-function scheduleRender(){
-  if(!source || renderQueued) return;
-  renderQueued = true;
-  requestAnimationFrame(() => {renderQueued=false; renderImage();});
-}
-function loadFile(file){
-  if(!file || !file.type.startsWith('image/')){setStatus('画像ファイルを選択してください。');return;}
-  const url = URL.createObjectURL(file), img = new Image();
-  img.onload = () => {
-    source = img; originalWidth = img.naturalWidth; originalHeight = img.naturalHeight; fileLabel = file.name;
-    canvas.width = originalWidth; canvas.height = originalHeight;
-    $('fileName').textContent = file.name + ` (${originalWidth} × ${originalHeight})`;
-    $('empty').hidden = true;
-    ['resetBtn','copyBtn','saveBtn'].forEach(id => $(id).disabled=false);
-    renderImage(); URL.revokeObjectURL(url);
-  };
-  img.onerror = () => {URL.revokeObjectURL(url);setStatus('画像を読み込めませんでした。');};
-  img.src = url;
-}
+const canvas=$('preview'),ctx=canvas.getContext('2d',{willReadFrequently:true}),stage=$('stage'),selectionEl=$('selection');
+const keys=['brightness','red','green','blue','temperature','contrast','highlights','shadows','saturation','sharpness','clarity'];
+let settings=Object.fromEntries(keys.map(k=>[k,0])),source=null,originalWidth=0,originalHeight=0,fileLabel='',renderQueued=false;
+let view={left:0,top:0,width:0,height:0,fit:1,zoom:1},selection=null,drag=null;
+const PREVIEW_MAX=1200;
+function setStatus(m){$('status').textContent=m;}
+function clamp(v,a,b){return Math.min(b,Math.max(a,v));}
+function syncControl(k,v){const r=$(k),n=$(k+'Value'),x=clamp(Number.isFinite(Number(v))?Number(v):0,Number(r.min),Number(r.max));settings[k]=x;r.value=x;n.value=x;}
+keys.forEach(k=>{$(k).addEventListener('input',e=>{syncControl(k,e.target.value);scheduleRender();});$(k+'Value').addEventListener('change',e=>{syncControl(k,e.target.value);scheduleRender();});$(k+'Value').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.target.blur();}});});
+function scheduleRender(){if(!source||renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;renderPreview();});}
+function fitImage(){if(!source)return;const r=stage.getBoundingClientRect(),pad=18;view.fit=Math.min((r.width-pad*2)/originalWidth,(r.height-pad*2)/originalHeight);view.zoom=1;view.width=originalWidth*view.fit;view.height=originalHeight*view.fit;view.left=(r.width-view.width)/2;view.top=(r.height-view.height)/2;applyView();}
+function applyView(){canvas.style.left=view.left+'px';canvas.style.top=view.top+'px';canvas.style.width=view.width+'px';canvas.style.height=view.height+'px';updateSelectionBox();}
+function loadFile(file){if(!file||!file.type.startsWith('image/')){setStatus('画像ファイルを選択してください。');return;}const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{source=img;originalWidth=img.naturalWidth;originalHeight=img.naturalHeight;fileLabel=file.name;selection=null;selectionEl.style.display='none';$('fileName').textContent=file.name+` (${originalWidth} × ${originalHeight})`;$('empty').hidden=true;['resetBtn','copyBtn','saveBtn'].forEach(id=>$(id).disabled=false);renderPreview();fitImage();URL.revokeObjectURL(url);};img.onerror=()=>{URL.revokeObjectURL(url);setStatus('画像を読み込めませんでした。');};img.src=url;}
 $('fileInput').addEventListener('change',e=>loadFile(e.target.files[0]));
-stage.addEventListener('dragover',e=>{e.preventDefault();stage.classList.add('dragover');});
-stage.addEventListener('dragleave',e=>{if(!stage.contains(e.relatedTarget))stage.classList.remove('dragover');});
-stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('dragover');loadFile(e.dataTransfer.files[0]);});
-
-function renderImage(){
-  if(!source)return;
-  ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(source,0,0);
-  const image = ctx.getImageData(0,0,canvas.width,canvas.height), d=image.data, w=canvas.width,h=canvas.height;
-  const s=settings;
-  // GIMPのDivide合成を想定し、ニュートラル値255の調整レイヤーを基準に明るさを変化。
-  // 正値は入力画素を255/(255-denominator)相当で除算、負値は暗くする方向へ反転。
-  const bright=s.brightness/100;
-  const divideDenom = bright>=0 ? 1-bright*0.92 : 1+(-bright)*3.0;
-  const brightMul = 1/divideDenom;
-  const gains=[1+s.red/100,1+s.green/100,1+s.blue/100];
-  const temp=s.temperature/100;
-  const tempGains=[1+0.22*temp,1+0.02*temp,1-0.22*temp];
-  const contrast=s.contrast/100;
-  const contrastFactor=contrast>=0 ? (1+contrast*2.2) : (1+contrast*0.85);
-  const satFactor=1+s.saturation/100;
-  const shadow=s.shadows/100, highlight=s.highlights/100;
-  const sharp=s.sharpness/100, clarity=s.clarity/100;
-  const lumAt=(i)=>0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];
-  // Base color adjustments; highlights/shadows are weighted by luminance.
-  const base=new Float32Array(d.length);
-  for(let i=0;i<d.length;i+=4){
-    let r=clamp(d[i]*brightMul*gains[0]*tempGains[0],0,255);
-    let g=clamp(d[i+1]*brightMul*gains[1]*tempGains[1],0,255);
-    let b=clamp(d[i+2]*brightMul*gains[2]*tempGains[2],0,255);
-    const lum=clamp(0.2126*r+0.7152*g+0.0722*b,0,255);
-    const shW=Math.pow(1-lum/255,1.7), hiW=Math.pow(lum/255,1.7);
-    const tonal=1+shadow*0.9*shW+highlight*0.75*hiW;
-    r=clamp(r*tonal,0,255);g=clamp(g*tonal,0,255);b=clamp(b*tonal,0,255);
-    r=clamp((r-127.5)*contrastFactor+127.5,0,255);
-    g=clamp((g-127.5)*contrastFactor+127.5,0,255);
-    b=clamp((b-127.5)*contrastFactor+127.5,0,255);
-    const l=0.2126*r+0.7152*g+0.0722*b;
-    r=l+(r-l)*satFactor;g=l+(g-l)*satFactor;b=l+(b-l)*satFactor;
-    base[i]=clamp(r,0,255);base[i+1]=clamp(g,0,255);base[i+2]=clamp(b,0,255);
-  }
-  // Local-contrast clarity and edge sharpness use a small 3x3 box blur.
-  if(sharp>0 || clarity!==0){
-    const src=base, out=new Float32Array(src.length);
-    const amount=sharp*1.25+clarity*0.65;
-    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-      const i=(y*w+x)*4;
-      for(let c=0;c<3;c++){
-        let sum=0,count=0;
-        for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){
-          const xx=x+ox,yy=y+oy;if(xx>=0&&xx<w&&yy>=0&&yy<h){sum+=src[(yy*w+xx)*4+c];count++;}
-        }
-        const blur=sum/count, detail=src[i+c]-blur;
-        out[i+c]=clamp(src[i+c]+detail*amount,0,255);
-      }
-      out[i+3]=d[i+3];
-    }
-    for(let i=0;i<d.length;i+=4){d[i]=out[i];d[i+1]=out[i+1];d[i+2]=out[i+2];}
-  }else{
-    for(let i=0;i<d.length;i+=4){d[i]=base[i];d[i+1]=base[i+1];d[i+2]=base[i+2];}
-  }
-  // Keep source alpha unchanged.
-  ctx.putImageData(image,0,0);
-  setStatus(`${fileLabel} — ${w} × ${h} px`);
-}
-function reset(){
-  keys.forEach(k=>syncControl(k,0));scheduleRender();
-}
-$('resetBtn').addEventListener('click',reset);
-
-function canvasBlob(type='image/png'){
-  return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('画像を書き出せませんでした。')),type));
-}
-async function copyImage(){
-  if(!source)return;
-  try{
-    if(!navigator.clipboard || !window.ClipboardItem) throw new Error('このブラウザーでは画像コピーに対応していません。HTTPSのページでお試しください。');
-    const blob=await canvasBlob('image/png');
-    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-    setStatus('編集済み画像をクリップボードにコピーしました。');
-  }catch(err){setStatus('コピーできませんでした：'+(err.message||'ブラウザーの権限をご確認ください。'));}
-}
+stage.addEventListener('dragover',e=>{e.preventDefault();stage.classList.add('dragover');});stage.addEventListener('dragleave',e=>{if(!stage.contains(e.relatedTarget))stage.classList.remove('dragover');});stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('dragover');loadFile(e.dataTransfer.files[0]);});
+function renderTo(target,maxDim=Infinity){if(!source)return;const scale=Math.min(1,maxDim/Math.max(originalWidth,originalHeight));const w=Math.max(1,Math.round(originalWidth*scale)),h=Math.max(1,Math.round(originalHeight*scale));target.width=w;target.height=h;const c=target.getContext('2d',{willReadFrequently:true});c.drawImage(source,0,0,w,h);const image=c.getImageData(0,0,w,h),d=image.data,n=w*h,s=settings;
+ const bright=s.brightness/100,den=bright>=0?1-bright*.92:1+(-bright)*3,brightMul=1/den;
+ const rg=1+s.red/100,gg=1+s.green/100,bg=1+s.blue/100,t=s.temperature/100,tr=1+.22*t,tg=1+.02*t,tb=1-.22*t;
+ const cf=s.contrast/100,contrast=cf>=0?1+cf*2.2:1+cf*.85,sat=1+s.saturation/100,sh=s.shadows/100,hi=s.highlights/100,sharp=s.sharpness/100,clar=s.clarity/100;
+ // 1パス目：基本補正。画素ごとの一時配列を作らずImageDataへ直接書き込みます。
+ for(let i=0;i<d.length;i+=4){let r=clamp(d[i]*brightMul*rg*tr,0,255),g=clamp(d[i+1]*brightMul*gg*tg,0,255),b=clamp(d[i+2]*brightMul*bg*tb,0,255);const lum=(.2126*r+.7152*g+.0722*b)/255,tonal=1+sh*.9*Math.pow(1-lum,1.7)+hi*.75*Math.pow(lum,1.7);r=clamp(r*tonal,0,255);g=clamp(g*tonal,0,255);b=clamp(b*tonal,0,255);r=clamp((r-127.5)*contrast+127.5,0,255);g=clamp((g-127.5)*contrast+127.5,0,255);b=clamp((b-127.5)*contrast+127.5,0,255);const l=.2126*r+.7152*g+.0722*b;d[i]=clamp(l+(r-l)*sat,0,255);d[i+1]=clamp(l+(g-l)*sat,0,255);d[i+2]=clamp(l+(b-l)*sat,0,255);}
+ // 2パス目：鮮明さ・明瞭度。高速な十字5タップの局所平均で3x3畳み込みを置換。
+ if(sharp>0||clar!==0){const src=new Float32Array(d.length);for(let i=0;i<d.length;i+=4){src[i]=d[i];src[i+1]=d[i+1];src[i+2]=d[i+2];}const amount=sharp*1.25+clar*.65;for(let y=0;y<h;y++){const row=y*w;for(let x=0;x<w;x++){const p=(row+x)*4,left=(row+Math.max(0,x-1))*4,right=(row+Math.min(w-1,x+1))*4,up=(Math.max(0,y-1)*w+x)*4,down=(Math.min(h-1,y+1)*w+x)*4;for(let ch=0;ch<3;ch++){const blur=(src[p+ch]+src[left+ch]+src[right+ch]+src[up+ch]+src[down+ch])*.2;d[p+ch]=clamp(src[p+ch]+(src[p+ch]-blur)*amount,0,255);}}}}
+ c.putImageData(image,0,0);return {width:w,height:h};}
+function renderPreview(){if(!source)return;renderTo(canvas,PREVIEW_MAX);applyView();}
+function reset(){keys.forEach(k=>syncControl(k,0));scheduleRender();}$('resetBtn').addEventListener('click',reset);
+function pointerPos(e){const r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function imagePos(p){return{x:clamp((p.x-view.left)/view.width*originalWidth,0,originalWidth),y:clamp((p.y-view.top)/view.height*originalHeight,0,originalHeight)};}
+function updateSelectionBox(){if(!selection||!source){selectionEl.style.display='none';return;}const x=view.left+selection.x/originalWidth*view.width,y=view.top+selection.y/originalHeight*view.height,w=selection.w/originalWidth*view.width,h=selection.h/originalHeight*view.height;Object.assign(selectionEl.style,{display:'block',left:x+'px',top:y+'px',width:w+'px',height:h+'px'});}
+stage.addEventListener('contextmenu',e=>e.preventDefault());
+stage.addEventListener('pointerdown',e=>{if(!source)return;if(e.button===2){drag={type:'pan',x:e.clientX,y:e.clientY,left:view.left,top:view.top};stage.setPointerCapture(e.pointerId);e.preventDefault();return;}if(e.button===0){const p=pointerPos(e),im=imagePos(p);drag={type:'select',start:im,current:im};selection={x:im.x,y:im.y,w:0,h:0};updateSelectionBox();stage.setPointerCapture(e.pointerId);e.preventDefault();}});
+stage.addEventListener('pointermove',e=>{if(!drag)return;if(drag.type==='pan'){view.left=drag.left+(e.clientX-drag.x);view.top=drag.top+(e.clientY-drag.y);applyView();}else{const p=imagePos(pointerPos(e)),a=drag.start;drag.current=p;selection={x:Math.min(a.x,p.x),y:Math.min(a.y,p.y),w:Math.abs(p.x-a.x),h:Math.abs(p.y-a.y)};updateSelectionBox();}});
+function endDrag(){if(drag&&drag.type==='select'&&selection&&(selection.w<3||selection.h<3)){selection=null;selectionEl.style.display='none';}drag=null;}stage.addEventListener('pointerup',endDrag);stage.addEventListener('pointercancel',endDrag);
+stage.addEventListener('wheel',e=>{if(!source)return;e.preventDefault();const p=pointerPos(e),factor=Math.exp(-e.deltaY*.0015),next=clamp(view.zoom*factor,.15,12),ratio=next/view.zoom;view.left=p.x-(p.x-view.left)*ratio;view.top=p.y-(p.y-view.top)*ratio;view.zoom=next;view.width=originalWidth*view.fit*next;view.height=originalHeight*view.fit*next;applyView();},{passive:false});
+new ResizeObserver(()=>{if(source)fitImage();}).observe(stage);
+function selectedRect(w,h){if(!selection||selection.w<3||selection.h<3)return{x:0,y:0,w,h};const x=clamp(Math.floor(selection.x),0,w-1),y=clamp(Math.floor(selection.y),0,h-1),right=clamp(Math.ceil(selection.x+selection.w),x+1,w),bottom=clamp(Math.ceil(selection.y+selection.h),y+1,h);return{x,y,w:right-x,h:bottom-y};}
+function exportCanvas(){const full=document.createElement('canvas');renderTo(full);const r=selectedRect(originalWidth,originalHeight);if(r.x===0&&r.y===0&&r.w===originalWidth&&r.h===originalHeight)return full;const crop=document.createElement('canvas');crop.width=r.w;crop.height=r.h;crop.getContext('2d').drawImage(full,r.x,r.y,r.w,r.h,0,0,r.w,r.h);return crop;}
+function canvasBlob(c){return new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('画像を書き出せませんでした。')),'image/png'));}
+async function copyImage(){if(!source)return;try{if(!navigator.clipboard||!window.ClipboardItem)throw new Error('このブラウザーでは画像コピーに対応していません。HTTPSのページでお試しください。');const blob=await canvasBlob(exportCanvas());await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);setStatus('編集済み画像をクリップボードにコピーしました。');}catch(err){setStatus('コピーできませんでした：'+(err.message||'ブラウザーの権限をご確認ください。'));}}
 $('copyBtn').addEventListener('click',copyImage);
-document.addEventListener('keydown',e=>{
-  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){
-    const active=document.activeElement;
-    const editingNumber=active && active.classList && active.classList.contains('value');
-    const selection=window.getSelection();
-    const hasTextSelection=selection && !selection.isCollapsed;
-    if(editingNumber || hasTextSelection || !source)return;
-    e.preventDefault();copyImage();
-  }
-});
-$('saveBtn').addEventListener('click',async()=>{
-  if(!source)return;
-  try{
-    const blob=await canvasBlob('image/png'),url=URL.createObjectURL(blob),a=document.createElement('a');
-    const stem=(fileLabel||'image').replace(/\.[^.]+$/,'');
-    a.href=url;a.download=stem+'_edited.png';document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus('PNGを保存しました。');
-  }catch(err){setStatus(err.message||'保存に失敗しました。');}
-});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selection){selection=null;selectionEl.style.display='none';return;}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){const active=document.activeElement,editingNumber=active&&active.classList&&active.classList.contains('value'),sel=window.getSelection(),hasText=sel&&!sel.isCollapsed;if(editingNumber||hasText||!source)return;e.preventDefault();copyImage();}});
+$('saveBtn').addEventListener('click',async()=>{if(!source)return;try{const blob=await canvasBlob(exportCanvas()),url=URL.createObjectURL(blob),a=document.createElement('a'),stem=(fileLabel||'image').replace(/\.[^.]+$/,'');a.href=url;a.download=stem+'_edited.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setStatus('PNGを保存しました。');}catch(err){setStatus(err.message||'保存に失敗しました。');}});
 })();
 </script>
 </body>
