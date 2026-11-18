@@ -86,7 +86,7 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
     <button id="copyBtn" type="button" disabled>画像をクリップボードにコピー</button>
     <button id="saveBtn" class="primary" type="button" disabled>PNGで保存</button>
   </div>
-  <div class="hint">Ctrl+Cでも現在の編集結果をクリップボードへコピーできます。初回利用時やブラウザーの仕様により、コピー時に許可が必要な場合があります。[cite: 1]</div>
+  <div class="hint">Ctrl+Cでも現在の編集結果をクリップボードへコピーできます。初回利用時やブラウザーの仕様により、コピー時に許可が必要な場合があります[cite: 1]。</div>
 </aside>
 </main>
 <script>
@@ -173,7 +173,7 @@ const fsSource = `
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = mix(vec3(l), c, sat);
 
-    // 鮮明さ・明瞭度の効き目をさらに2倍に強化（係数を5.0と2.6に設定）
+    // 鮮明さ・明瞭度（輝度ベースの差分加算により、ベースの明るさが変わっても明るさが勝手に変動しないように修正）
     float amount = (u_sharpness / 100.0) * 5.0 + (u_clarity / 100.0) * 2.6;
     if (amount != 0.0) {
       vec3 blur = (
@@ -183,7 +183,11 @@ const fsSource = `
         texture2D(u_image, v_texCoord - vec2(0.0, u_texelSize.y)).rgb +
         c
       ) * 0.2;
-      c += (c - blur) * amount;
+      
+      float lumC = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      float lumBlur = dot(blur, vec3(0.2126, 0.7152, 0.0722));
+      float diff = (lumC - lumBlur) * amount;
+      c += vec3(diff);
     }
 
     gl_FragColor = vec4(clamp(c, 0.0, 1.0), col.a);
