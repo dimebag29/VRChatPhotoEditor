@@ -1,2 +1,13 @@
+# サイトの基本情報
+title: "VRChat Photo Editor"
+description: "VRChatの写真を編集・管理するためのツール・サイト"
+url: "https://dimebag29.github.io"
+baseurl: "/VRChatPhotoEditor"
+
+# GitHub Pagesで標準サポートされているプラグイン
 plugins:
-  - jekyll-sitemap
+  - jekyll-feed
+  - jekyll-seo-tag
+
+# マークダウンの処理エンジンの指定（基本設定）
+markdown: kramdown
