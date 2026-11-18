@@ -6,6 +6,7 @@ baseurl: "/VRChatPhotoEditor"
 
 # GitHub Pagesで標準サポートされているプラグイン
 plugins:
+  - jekyll-sitemap
   - jekyll-feed
   - jekyll-seo-tag
 
