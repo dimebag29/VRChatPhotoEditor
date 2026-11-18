@@ -68,7 +68,7 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
   <div class="stage" id="stage">
     <canvas id="preview"></canvas>
     <div id="selection"></div>
-    <div class="empty" id="empty"><strong>画像をここにドラッグ＆ドロップ</strong>または「ファイルを選択」から画像を読み込んでください。</div>
+    <div class="empty" id="empty"><strong>画像をここにドラッグ＆ドロップ</strong>、または「ファイルを選択」・クリップボードからの貼り付け（Ctrl+V）で画像を読み込んでください。</div>
   </div>
   <div class="status" id="status">画像はブラウザー内で処理され、サーバーへ送信されません。</div>
 </section>
@@ -97,7 +97,7 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
     <button id="copyBtn" type="button" disabled>画像をクリップボードにコピー</button>
     <button id="saveBtn" class="primary" type="button" disabled>PNGで保存</button>
   </div>
-  <div class="hint">Ctrl+Cでも現在の編集結果をクリップボードへコピーできます。初回利用時やブラウザーの仕様により、コピー時に許可が必要な場合があります。</div>
+  <div class="hint">Ctrl+Cで編集結果をコピー、Ctrl+Vでクリップボードから画像を貼り付けできます。初回利用時にコピー・ペーストの許可が必要な場合があります。</div>
 </aside>
 </main>
 <script>
@@ -278,9 +278,9 @@ function loadFile(file){
   if(!file || !file.type.startsWith('image/')){ setStatus('画像ファイルを選択してください。'); return; }
   const url = URL.createObjectURL(file), img = new Image();
   img.onload = () => {
-    source = img; originalWidth = img.naturalWidth; originalHeight = img.naturalHeight; fileLabel = file.name;
+    source = img; originalWidth = img.naturalWidth; originalHeight = img.naturalHeight; fileLabel = file.name || 'clipboard_image.png';
     selection = null; selectionEl.style.display = 'none';
-    $('fileName').textContent = file.name + ` (${originalWidth} × ${originalHeight})`;
+    $('fileName').textContent = file.name ? (file.name + ` (${originalWidth} × ${originalHeight})`) : `クリップボード画像 (${originalWidth} × ${originalHeight})`;
     $('empty').style.display = 'none';
     ['resetBtn','copyBtn','saveBtn'].forEach(id => $(id).disabled = false);
 
@@ -390,13 +390,47 @@ async function copyImage(){
   } catch(err){ setStatus('コピーできませんでした：' + (err.message || 'ブラウザーの権限をご確認ください。')); }
 }
 $('copyBtn').addEventListener('click', copyImage);
+
+// -----------------------------------------------------------------
+// キーボードショートカット（Ctrl+C / Ctrl+V）の処理
+// -----------------------------------------------------------------
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape' && selection){ selection = null; selectionEl.style.display = 'none'; return; }
+  
+  // Ctrl+C (コピー)
   if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c'){
     const active = document.activeElement, editingNumber = active && active.classList && active.classList.contains('value');
     const sel = window.getSelection(), hasText = sel && !sel.isCollapsed;
     if(editingNumber || hasText || !source) return;
     e.preventDefault(); copyImage();
+  }
+});
+
+// クリップボードからの画像貼り付け（Ctrl+Vなど）の処理
+document.addEventListener('paste', e => {
+  const active = document.activeElement;
+  // スライダーの数値入力欄（クラス .value）やその他の入力要素にフォーカスがある場合は処理しない
+  const isEditing = active && (
+    active.classList.contains('value') || 
+    active.tagName === 'INPUT' || 
+    active.tagName === 'TEXTAREA' || 
+    active.isContentEditable
+  );
+  if(isEditing) return;
+
+  const items = e.clipboardData && e.clipboardData.items;
+  if(!items) return;
+
+  for(const item of items){
+    if(item.type.startsWith('image/')){
+      const file = item.getAsFile();
+      if(file){
+        e.preventDefault();
+        loadFile(file);
+        setStatus('クリップボードから画像を読み込みました。');
+        break;
+      }
+    }
   }
 });
 
