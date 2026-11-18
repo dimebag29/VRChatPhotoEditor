@@ -29,7 +29,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .empty strong{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
 .stage.dragover{outline:3px solid var(--accent);outline-offset:-5px;background-color:#202b3c}
 .status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.sidebar{border-left:1px solid var(--line);background:var(--panel);padding:10px 16px 12px;overflow:hidden;min-height:0;display:flex;flex-direction:column;justify-content:flex-start}
+.sidebar{border-left:1px solid var(--line);background:var(--panel);padding:10px 16px 12px;overflow-y:auto;min-height:0;display:flex;flex-direction:column;justify-content:flex-start}
 .group{padding:7px 0;border-top:1px solid var(--line)}
 .group h3{font-size:12px;margin:0 0 6px;color:var(--accent2);font-weight:700}
 .control{margin:0 0 5px}.control:last-child{margin-bottom:0}
@@ -63,14 +63,17 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
 </section>
 <aside class="sidebar">
   <div class="group">
-    <h3>明るさ・色バランス</h3>
+    <h3>明るさ</h3>
     <div class="control" data-key="brightness"><div class="control-head"><label for="brightness">明るさ</label><input class="value" id="brightnessValue" type="number" min="-100" max="100" step="1" value="0"></div><input id="brightness" type="range" min="-100" max="100" step="1" value="0"></div>
+  </div>
+  <div class="group">
+    <h3>色バランス</h3>
     <div class="control" data-key="red"><div class="control-head"><label for="red">赤（R）</label><input class="value" id="redValue" type="number" min="-100" max="100" value="0"></div><input id="red" type="range" min="-100" max="100" value="0"></div>
     <div class="control" data-key="green"><div class="control-head"><label for="green">緑（G）</label><input class="value" id="greenValue" type="number" min="-100" max="100" value="0"></div><input id="green" type="range" min="-100" max="100" value="0"></div>
     <div class="control" data-key="blue"><div class="control-head"><label for="blue">青（B）</label><input class="value" id="blueValue" type="number" min="-100" max="100" value="0"></div><input id="blue" type="range" min="-100" max="100" value="0"></div>
   </div>
   <div class="group">
-    <h3>基本補正</h3>
+    <h3>その他補正</h3>
     <div class="control" data-key="temperature"><div class="control-head"><label for="temperature">色温度</label><input class="value" id="temperatureValue" type="number" min="-100" max="100" value="0"></div><input id="temperature" type="range" min="-100" max="100" value="0"></div>
     <div class="control" data-key="contrast"><div class="control-head"><label for="contrast">コントラスト</label><input class="value" id="contrastValue" type="number" min="-100" max="100" value="0"></div><input id="contrast" type="range" min="-100" max="100" value="0"></div>
     <div class="control" data-key="highlights"><div class="control-head"><label for="highlights">ハイライト</label><input class="value" id="highlightsValue" type="number" min="-100" max="100" value="0"></div><input id="highlights" type="range" min="-100" max="100" value="0"></div>
@@ -83,7 +86,7 @@ input[type=range]{display:block;width:100%;height:12px;margin:0;accent-color:var
     <button id="copyBtn" type="button" disabled>画像をクリップボードにコピー</button>
     <button id="saveBtn" class="primary" type="button" disabled>PNGで保存</button>
   </div>
-  <div class="hint">Ctrl+Cでも現在の編集結果をクリップボードへコピーできます。初回利用時やブラウザーの仕様により、コピー時に許可が必要な場合があります。</div>
+  <div class="hint">Ctrl+Cでも現在の編集結果をクリップボードへコピーできます。初回利用時やブラウザーの仕様により、コピー時に許可が必要な場合があります。[cite: 1]</div>
 </aside>
 </main>
 <script>
@@ -95,11 +98,11 @@ const keys = ['brightness','red','green','blue','temperature','contrast','highli
 let settings = Object.fromEntries(keys.map(k => [k, 0])), source = null, originalWidth = 0, originalHeight = 0, fileLabel = '';
 let view = { left: 0, top: 0, width: 0, height: 0, fit: 1, zoom: 1 }, selection = null, drag = null;
 
-// WebGL コンテキストの初期化
+// WebGL コンテキストの初期化[cite: 1]
 const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, premultipliedAlpha: false });
 if (!gl) { alert('WebGLがサポートされていません'); }
 
-// シェーダーのコンパイル
+// シェーダーのコンパイル[cite: 1]
 function createShader(gl, type, source) {
   const shader = gl.createShader(type);
   gl.shaderSource(shader, source);
@@ -170,8 +173,8 @@ const fsSource = `
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = mix(vec3(l), c, sat);
 
-    // 鮮明さ・明瞭度の効きを2倍に強化 (1.25->2.5, 0.65->1.3)
-    float amount = (u_sharpness / 100.0) * 2.5 + (u_clarity / 100.0) * 1.3;
+    // 鮮明さ・明瞭度の効き目をさらに2倍に強化（係数を5.0と2.6に設定）
+    float amount = (u_sharpness / 100.0) * 5.0 + (u_clarity / 100.0) * 2.6;
     if (amount != 0.0) {
       vec3 blur = (
         texture2D(u_image, v_texCoord + vec2(u_texelSize.x, 0.0)).rgb +
@@ -195,7 +198,7 @@ gl.attachShader(program, fragShader);
 gl.linkProgram(program);
 gl.useProgram(program);
 
-// ジオメトリ（全画面矩形）の設定
+// ジオメトリ（全画面矩形）の設定[cite: 1]
 const positionBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
@@ -260,7 +263,7 @@ function loadFile(file){
     $('empty').style.display = 'none';
     ['resetBtn','copyBtn','saveBtn'].forEach(id => $(id).disabled = false);
 
-    // テクスチャ作成
+    // テクスチャ作成[cite: 1]
     if(texture) gl.deleteTexture(texture);
     texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -291,7 +294,7 @@ function renderPreview(){
   gl.viewport(0, 0, originalWidth, originalHeight);
   gl.useProgram(program);
 
-  // Uniform変数の送信
+  // Uniform変数の送信[cite: 1]
   gl.uniform2f(gl.getUniformLocation(program, "u_texelSize"), 1.0 / originalWidth, 1.0 / originalHeight);
   keys.forEach(k => {
     gl.uniform1f(gl.getUniformLocation(program, "u_" + k), settings[k]);
@@ -346,7 +349,7 @@ function selectedRect(w,h){
 }
 
 function exportCanvas(){
-  renderPreview(); // フル解像度で再描画確定
+  renderPreview(); // フル解像度で再描画確定[cite: 1]
   const r = selectedRect(originalWidth, originalHeight);
   const crop = document.createElement('canvas');
   crop.width = r.w; crop.height = r.h;
