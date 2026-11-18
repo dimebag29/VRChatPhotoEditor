@@ -1,6 +1,6 @@
 # サイトの基本情報
 title: "VRChat Photo Editor"
-description: "VRChatの写真を編集・管理するためのツール・サイト"
+description: "ブラウザー上でVRChatの写真の明るさなどを調整できるWebサイトです。"
 url: "https://dimebag29.github.io"
 baseurl: "/VRChatPhotoEditor"
 
